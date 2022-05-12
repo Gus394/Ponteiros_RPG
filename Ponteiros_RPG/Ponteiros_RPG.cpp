@@ -1,33 +1,29 @@
 #include <iostream> // Trabalho feito por Gustavo Coelho e João Vitor Custódio na disciplina de Algoritmos e Programação II
-//#include <time.h>
 using namespace std;
 
-struct Arma
-{
+struct Arma {
 	string nome;
-	int min{};
-	int max{};
+	int min;
+	int max;
 };
 
-struct Jogador
-{
+struct Jogador {
 	int hp;
 	int x;
 	int y;
 	Arma arma;
 };
 
-struct Inimigo
-{
+struct Inimigo {
 	string nome;
-	int hp{};
+	int hp;
 	Arma arma;
 };
 
 struct Bloco {
 	bool bloqueado = false;
 	bool tem_inimigo = false;
-	Inimigo* ini{};
+	Inimigo* ini;
 };
 
 struct Mapa {
@@ -36,10 +32,9 @@ struct Mapa {
 	Bloco** pp_bloco;
 };
 
-struct Fase
-{
+struct Fase {
 	string nome;
-	Mapa mapa{};
+	Mapa mapa;
 	int num_inimigos;
 	Inimigo* inimigos;
 };
@@ -50,8 +45,9 @@ Mapa CriarMapa(int altura, int largura) {
 	mapa.l = largura;
 	
 	mapa.pp_bloco = new Bloco* [altura];
-	for (int i = 0; i < altura; i++) {
-		mapa.pp_bloco[i] = new Bloco [largura];
+	mapa.pp_bloco[0] = new Bloco [altura * largura];
+	for (int i = 1; i < altura; i++) {
+		mapa.pp_bloco[i] = mapa.pp_bloco[0] + i * largura;
 	}
 	
 	int r;
@@ -67,9 +63,7 @@ Mapa CriarMapa(int altura, int largura) {
 }
 
 Fase CriarFase(int numInimigos, Inimigo* inimigos, int alturaMapa, int larguraMapa) {
-	Fase fase;
-	fase.mapa = CriarMapa(alturaMapa, larguraMapa);
-	fase.inimigos = inimigos;
+	Fase fase = {"sem nome", CriarMapa(alturaMapa, larguraMapa), numInimigos, inimigos};
 
 	int r_linha;
 	int r_coluna;
@@ -88,14 +82,13 @@ Fase CriarFase(int numInimigos, Inimigo* inimigos, int alturaMapa, int larguraMa
 }
 
 void exibirMapa(Fase fase, Jogador jogador) {
-	while (fase.mapa.pp_bloco[jogador.x][jogador.y].bloqueado == true || fase.mapa.pp_bloco[jogador.x][jogador.y].tem_inimigo == true) {
-		jogador.x = rand() % fase.mapa.a;
-		jogador.y = rand() % fase.mapa.l;
-	}
 	for (int i = 0; i < fase.mapa.a; i++) {
 		cout << "\n";
 		for (int j = 0; j < fase.mapa.l; j++) {
-			if (i == jogador.x && j == jogador.y) {
+			if (i == jogador.x && j == jogador.y && fase.mapa.pp_bloco[i][j].tem_inimigo == true) {
+				cout << "  |Combate|  ";
+			}
+			else if (i == jogador.x && j == jogador.y) {
 				cout << "  |Jogador|  ";
 			}
 			else if (fase.mapa.pp_bloco[i][j].bloqueado == true) {
@@ -112,13 +105,82 @@ void exibirMapa(Fase fase, Jogador jogador) {
 	}
 }
 
-void movimentar() {
+template <typename AGRESSOR, typename ALVO>
+int ataque(AGRESSOR x, ALVO y) {
+	return y.hp - (rand() % (x.arma.max + 1 - x.arma.min) + x.arma.min);
+}
 
+Jogador combate(Jogador jogador, Fase fase) {
+	Inimigo inimigo = *fase.mapa.pp_bloco[jogador.x][jogador.y].ini;
+	cout << "\n Iniciando combate com: " << inimigo.nome << " (HP: " << inimigo.hp << "). "; system("pause");
+	
+	while (inimigo.hp > 0 && jogador.hp > 0) {
+		
+		inimigo.hp = ataque(jogador, inimigo);
+		jogador.hp = ataque(inimigo, jogador);
+
+		cout << "\n Jogador atacou com " << jogador.arma.nome << " (" << jogador.arma.min << "-" << jogador.arma.max << "): "
+			 << inimigo.nome << " ficou com " << inimigo.hp << " de vida.\n";
+		cout << " Oponente " << inimigo.nome << " atacou com " << inimigo.arma.nome << " (" << inimigo.arma.min << "-" << inimigo.arma.max << "):"
+			 << " jogador ficou com " << jogador.hp << " de vida.\n";
+	}
+	cout << "\n ";
+	system("pause");
+	
+	return jogador;
+}
+
+Jogador movimentar(Fase fase, Jogador jogador) {
+	int x = jogador.x;
+	int y = jogador.y;
+	
+	cout << "\n Utilize 'wasd' para se mover ou 'l' para desistir. Inimigos restantes: " << fase.num_inimigos << ".\n";
+	char movimento;
+	cin >> movimento;
+
+	switch (movimento)
+	{
+	case 'w':
+		x--;
+		break;
+	
+	case 'a':
+		y--;
+		break;
+
+	case 's':
+		x++;
+		break;
+
+	case 'd':
+		y++;
+		break;
+
+	case 'l':
+		jogador.hp = 0;
+		break;
+
+	default:
+		break;
+	}
+	if (x < 0 || y < 0 || x == fase.mapa.a || y == fase.mapa.l) {
+		cout << "Fique dentro dos limites do mapa. ";
+		system("pause");
+	}
+	else if (fase.mapa.pp_bloco[x][y].bloqueado == true) {
+		cout << "Caminho bloqueado, tente novamente. ";
+		system("pause");
+	}
+	else {
+		jogador.x = x;
+		jogador.y = y;
+	}
+	return jogador;
 }
 
 int main()
 {
-	srand(static_cast<unsigned>(time(NULL)));
+	srand((time(NULL)));
 
 	int altura = rand() % 5 + 4;
 	int largura = rand() % 5 + 4;
@@ -130,7 +192,7 @@ int main()
 	arma[2] = { "chicote", 1, 15 };
 	arma[3] = { "alabarda", 10, 20 };
 	arma[4] = { "nunchaku", 7, 7 };
-	arma[5] = { "panela", 1, 2 };
+	arma[5] = { "panela", 4, 5 };
 	arma[6] = { "foice", 5, 30 };
 	arma[7] = { "tridente", 3, 33 };
 	arma[8] = { "???", 50, 100 };
@@ -154,7 +216,31 @@ int main()
 	}
 
 	Fase fase = CriarFase(numInimigos, p_inimigos, altura, largura);
-	Jogador jogador = { 500, rand() % altura, rand() % largura, arma[rand() % 10]};
+	Jogador jogador = { 1000, rand() % altura, rand() % largura, arma[rand() % 10]};
+
+	while (fase.mapa.pp_bloco[jogador.x][jogador.y].bloqueado == true || fase.mapa.pp_bloco[jogador.x][jogador.y].tem_inimigo == true) {
+		jogador.x = rand() % fase.mapa.a;
+		jogador.y = rand() % fase.mapa.l;
+	}
 	
-	exibirMapa(fase, jogador);
+	while (jogador.hp > 0 && fase.num_inimigos > 0) {
+		system("CLS");
+		exibirMapa(fase, jogador);
+		
+		if (fase.mapa.pp_bloco[jogador.x][jogador.y].tem_inimigo == true) {
+			jogador = combate(jogador, fase);
+			fase.num_inimigos--;
+			fase.mapa.pp_bloco[jogador.x][jogador.y].tem_inimigo = false;
+		}
+		else {
+			jogador = movimentar(fase, jogador);
+		}
+	}
+
+	if (jogador.hp > 0) {
+		cout << "\n Todos os inimigos foram derrotados. Bom trabalho.\n\n";
+	}
+	else {
+		cout << "\n Morreu...\n\n";
+	}
 }
