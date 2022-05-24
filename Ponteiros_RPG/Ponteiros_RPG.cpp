@@ -23,13 +23,16 @@ struct Inimigo {
 struct Bloco {
 	bool bloqueado = false;
 	bool tem_inimigo = false;
+	bool verificado = false;
+	bool chegada = false;
 	Inimigo* ini;
 };
 
 struct Mapa {
 	int a;
 	int l;
-	Bloco** pp_bloco;
+	bool tem_caminho = false;
+	Bloco** pp_bloco = nullptr;
 };
 
 struct Fase {
@@ -43,6 +46,8 @@ Mapa CriarMapa(int altura, int largura) {
 	Mapa mapa;
 	mapa.a = altura;
 	mapa.l = largura;
+
+	delete [] mapa.pp_bloco;
 	
 	mapa.pp_bloco = new Bloco* [altura];
 	mapa.pp_bloco[0] = new Bloco [altura * largura];
@@ -50,15 +55,46 @@ Mapa CriarMapa(int altura, int largura) {
 		mapa.pp_bloco[i] = mapa.pp_bloco[0] + i * largura;
 	}
 	
-	int r;
-	for (int i = 0; i < altura; i++) {
-		for (int j = 0; j < largura; j++) {
-			r = rand() % 10;
-			if (r < 2) {
-				mapa.pp_bloco[i][j].bloqueado = true;
-			}
+	int r_linha;
+	int r_coluna;
+
+	for (int i = 0; i < altura * largura / 2;) {
+		r_linha = rand() % altura;
+		r_coluna = rand() % largura;
+		
+		if ((r_linha == altura - 1 && r_coluna == largura - 1) || (r_linha == 0 && r_coluna == 0)) {
+			
+		}
+		else if (mapa.pp_bloco[r_linha][r_coluna].bloqueado == false) {
+			mapa.pp_bloco[r_linha][r_coluna].bloqueado = true;
+			i++;
 		}
 	}
+	mapa.pp_bloco[altura - 1][largura - 1].chegada = true;
+	return mapa;
+}
+
+Mapa r_chegada(Mapa mapa, int x = 0, int y = 0) {
+	if (mapa.pp_bloco[x][y].chegada == true) {
+		mapa.tem_caminho = true;
+	}
+	else if (y + 1 < mapa.l && mapa.pp_bloco[x][y + 1].verificado == false && mapa.pp_bloco[x][y + 1].bloqueado == false) {
+		mapa.pp_bloco[x][y + 1].verificado = true;
+		return r_chegada(mapa, x, y + 1);
+	}
+	else if (x + 1 < mapa.a && mapa.pp_bloco[x + 1][y].verificado == false && mapa.pp_bloco[x + 1][y].bloqueado == false) {
+		mapa.pp_bloco[x + 1][y].verificado = true;
+		return r_chegada(mapa, x + 1, y);
+	}
+	else if (x - 1 >= 0 && mapa.pp_bloco[x - 1][y].verificado == false && mapa.pp_bloco[x - 1][y].bloqueado == false) {
+		mapa.pp_bloco[x - 1][y].verificado = true;
+		return r_chegada(mapa, x - 1, y);
+	}
+	else if (y - 1 >= 0 && mapa.pp_bloco[x][y - 1].bloqueado == false) {
+		mapa.pp_bloco[x][y - 1].verificado = true;
+		return r_chegada(mapa, x, y - 1);
+	}
+	
 	return mapa;
 }
 
@@ -72,7 +108,7 @@ Fase CriarFase(int numInimigos, Inimigo* inimigos, int alturaMapa, int larguraMa
 		r_linha = rand() % alturaMapa;
 		r_coluna = rand() % larguraMapa;
 		
-		if (fase.mapa.pp_bloco[r_linha][r_coluna].bloqueado == false && fase.mapa.pp_bloco[r_linha][r_coluna].tem_inimigo == false) {
+		if (fase.mapa.pp_bloco[r_linha][r_coluna].bloqueado == false && fase.mapa.pp_bloco[r_linha][r_coluna].tem_inimigo == false && (r_linha != 0 && r_coluna != 0) && (r_linha != alturaMapa - 1 && r_coluna != larguraMapa - 1)) { // !
 			fase.mapa.pp_bloco[r_linha][r_coluna].tem_inimigo = true;
 			fase.mapa.pp_bloco[r_linha][r_coluna].ini = &fase.inimigos[i];
 			i++;
@@ -88,6 +124,8 @@ void exibirMapa(Fase fase, Jogador jogador) {
 			if (i == jogador.x && j == jogador.y && fase.mapa.pp_bloco[i][j].tem_inimigo == true) {
 				cout << "  |Combate|  ";
 			}
+			else if (i == fase.mapa.a - 1 && j == fase.mapa.l - 1)
+				cout << "  |Chegada|  ";
 			else if (i == jogador.x && j == jogador.y) {
 				cout << "  |Jogador|  ";
 			}
@@ -182,8 +220,8 @@ int main()
 {
 	srand((time(NULL)));
 
-	int altura = rand() % 5 + 4;
-	int largura = rand() % 5 + 4;
+	int altura = 7;
+	int largura = 7;
 	int numInimigos = rand() % 5 + 4;
 
 	Arma arma[10];
@@ -216,12 +254,13 @@ int main()
 	}
 
 	Fase fase = CriarFase(numInimigos, p_inimigos, altura, largura);
-	Jogador jogador = { 1000, rand() % altura, rand() % largura, arma[rand() % 10]};
-
-	while (fase.mapa.pp_bloco[jogador.x][jogador.y].bloqueado == true || fase.mapa.pp_bloco[jogador.x][jogador.y].tem_inimigo == true) {
-		jogador.x = rand() % fase.mapa.a;
-		jogador.y = rand() % fase.mapa.l;
+	
+	while (fase.mapa.tem_caminho == false) {
+		fase = CriarFase(numInimigos, p_inimigos, altura, largura);
+		fase.mapa = r_chegada(fase.mapa);
 	}
+	
+	Jogador jogador = { 1000, 0, 0, arma[rand() % 10]};
 	
 	while (jogador.hp > 0 && fase.num_inimigos > 0) {
 		system("CLS");
