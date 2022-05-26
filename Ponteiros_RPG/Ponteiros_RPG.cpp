@@ -102,7 +102,7 @@ Fase CriarFase(int numInimigos, Inimigo* inimigos, int alturaMapa, int larguraMa
 	int r_linha;
 	int r_coluna;
 
-	if (fase.mapa.tem_caminho == true) { // COLOQUEI ESSE IF ELSE E DEU MANO Q MERDA K duas horas pensando
+	if (fase.mapa.tem_caminho == true) {
 		for (int i = 0; i < numInimigos;) {
 			r_linha = rand() % alturaMapa;
 			r_coluna = rand() % larguraMapa;
@@ -112,9 +112,6 @@ Fase CriarFase(int numInimigos, Inimigo* inimigos, int alturaMapa, int larguraMa
 				i++;
 			}
 		}
-	}
-	else {
-		fase.mapa.tem_caminho = false;
 	}
 	return fase;
 }
